@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Affiliate Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body{
+    font-family: -apple-system, sans-serif;
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 20px;
+    color: #1B1F23;
+  }
+  h1{ margin-bottom: 8px; }
+  table{
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  th, td{
+    text-align: left;
+    padding: 10px;
+    border-bottom: 1px solid #E4E0D8;
+  }
+  th{ background: #FAF8F4; }
+  form{
+    margin-top: 30px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  input{
+    padding: 8px;
+    border: 1px solid #E4E0D8;
+    border-radius: 6px;
+  }
+  button{
+    padding: 8px 16px;
+    background: #2B6CB0;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #error{ color: #C0392B; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div id="login-box">
+  <h2>Login</h2>
+  <input type="email" id="login-email" placeholder="Email">
+  <input type="password" id="login-password" placeholder="Password">
+  <button id="login-btn">Log in</button>
+  <div id="login-error" style="color:#C0392B;"></div>
+</div>
+
+<div id="dashboard-content" style="display:none;">
+
+<h1>Affiliate Dashboard</h1>
+<p>Live data from your local API.</p>
+
+<table>
+  <thead>
+    <tr><th>Name</th><th>Leads</th><th>Commissions</th><th>Efficiency</th><th>Status</th></tr>
+  </thead>
+  <tbody id="affiliate-rows"></tbody>
+</table>
+
+<div id="error"></div>
+
+<h2>Add a new affiliate</h2>
+<form id="add-form">
+  <input type="text" id="name" placeholder="Name" required>
+  <input type="number" id="leads" placeholder="Leads" required>
+  <input type="number" id="commissions" placeholder="Commissions" required>
+  <button type="submit">Add</button>
+</form>
+
+<script>
+  const SUPABASE_URL= "https://fmivxpnbnfsexyyagayr.supabase.co" ;
+  const SUPABASE_KEY= "sb_publishable_lOtCxjhIiXQLBKS5RHqpJQ_bSNWUYyx" ;
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  document.getElementById('login-btn').addEventListener('click', async () => {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const errorDiv = document.getElementById('login-error');
+  errorDiv.textContent = "";
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if(error){
+    errorDiv.textContent = "Login failed: " + error.message;
+    return;
+  }
+
+  document.getElementById('login-box').style.display = "none";
+  document.getElementById('dashboard-content').style.display = "block";
+  loadAffiliates();
+});
+  const API_URL = "http://localhost:3000/affiliates";
+
+  async function loadAffiliates(){
+    const errorDiv = document.getElementById('error');
+    errorDiv.textContent = "";
+    try{
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      const rows = document.getElementById('affiliate-rows');
+      rows.innerHTML = "";
+            data.forEach(a => {
+        const tr = document.createElement('tr');
+        if(a.flagged){
+          tr.style.background = "#FDECEA";
+        }
+        tr.innerHTML = `
+          <td>${a.name}</td>
+          <td>${a.leads}</td>
+          <td>${a.commissions}</td>
+          <td>${a.efficiency}</td>
+          <td>${a.flagged ? "⚠️ Flagged" : ""}</td>
+        `;
+        rows.appendChild(tr);
+      });
+    } catch(err){
+      errorDiv.textContent = "Could not load data. Is your API running?";
+    }
+  }
+
+  document.getElementById('add-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('name').value;
+    const leads = Number(document.getElementById('leads').value);
+    const commissions = Number(document.getElementById('commissions').value);
+
+    try{
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, leads, commissions })
+      });
+      if(!res.ok) throw new Error("Failed to add affiliate");
+      document.getElementById('add-form').reset();
+      loadAffiliates();
+    } catch(err){
+      document.getElementById('error').textContent = "Could not add affiliate.";
+    }
+  });
+
+</script>
+
+</body>
+</html>
